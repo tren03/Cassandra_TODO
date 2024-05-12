@@ -14,20 +14,23 @@ session.execute("CREATE TABLE IF NOT EXISTS tasks (id UUID PRIMARY KEY, task TEX
 
 @app.route('/')
 def index():
-    # Get all distinct groups
-    # there was an error in selection of distinct groups from original table   
-
-    # Get tasks for the selected group (or all tasks if no group is selected)
-    selected_group = request.args.get('group')
-    if selected_group:
-        rows = session.execute("SELECT * FROM tasks WHERE group_tag = %s ALLOW FILTERING", [selected_group])
-    else:
-        rows = session.execute("SELECT * FROM tasks")
-
+    # Get all tasks
+    rows = session.execute("SELECT * FROM tasks")
     tasks = [{'id': row.id, 'task': row.task, 'group': row.group_tag} for row in rows]
 
-    # Remove empty groups
-    non_empty_groups = set(task['group'] for task in tasks)
+    # Extract distinct groups from tasks
+    all_groups = [task['group'] for task in tasks]
+
+    # Filter out empty groups
+    non_empty_groups = set(group for group in all_groups if group)
+
+    # Get the selected group from the request
+    selected_group = request.args.get('group')
+
+    # Filter tasks for the selected group if specified
+    # we choose distinct groups from python since cassandra doesnt allow distinct for non partiion key
+    if selected_group:
+        tasks = [task for task in tasks if task['group'] == selected_group]
 
     return render_template('index.html', tasks=tasks, groups=non_empty_groups, selected_group=selected_group)
 
