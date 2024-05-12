@@ -37,11 +37,13 @@ def add():
     task = request.form['task']
     group_tag = request.form['group']
 
-    if group_tag == "":
-        group_tag = "default"
+    if task!="":
 
-    # Insert task into the database
-    session.execute("INSERT INTO tasks (id, task, group_tag) VALUES (%s, %s, %s)", (uuid4(), task, group_tag))
+        if group_tag == "":
+            group_tag = "default"
+
+        # Insert task into the database
+        session.execute("INSERT INTO tasks (id, task, group_tag) VALUES (%s, %s, %s)", (uuid4(), task, group_tag))
 
     # Update group tags table
     # session.execute("INSERT INTO group_tags (group_tag) VALUES (%s) IF NOT EXISTS", [group_tag])
