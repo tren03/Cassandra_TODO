@@ -1,4 +1,4 @@
-A simple todo app that uses a cassandra cluster with a single node in a local setting.
+A Todo app that uses a cassandra cluster with a single node in a local setting.
 Make sure to be running a local cluster of cassandra on your system.
 
 I followed this tutorial for the installation - https://www.youtube.com/watch?v=pGhkX5z_vW8&list=PLalrWAGybpB-L1PGA-NfFu2uiWHEsdscD&index=4&ab_channel=jumpstartCS
