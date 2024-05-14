@@ -1,7 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for
 from cassandra.cluster import Cluster
 from uuid import uuid4
+from collections import defaultdict
+import io
+from flask import send_file
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
+from flask import jsonify
 app = Flask(__name__)
 
 # Connect to the Cassandra cluster
@@ -58,5 +64,59 @@ def delete(id):
     session.execute("DELETE FROM tasks WHERE id = %s", [id])
     return redirect(url_for('index'))
 
+@app.route('/tasks_count_chart')
+def tasks_count_chart():
+    rows = session.execute("SELECT * FROM tasks")
+    task_counts = defaultdict(int)
+    for row in rows:
+        task_counts[row.group_tag] += 1
+
+    # Create a pie chart
+    labels = list(task_counts.keys())
+    sizes = list(task_counts.values())
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%')
+    plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+
+    # Save the plot to a BytesIO object
+    img_bytes = io.BytesIO()
+    plt.savefig(img_bytes, format='png')
+    img_bytes.seek(0)
+
+    # Clear the plot to release memory
+    plt.clf()
+
+    # Send the image as a file
+    return send_file(img_bytes, mimetype='image/png')
+
+@app.route('/task_histogram')
+def task_histogram():
+    # Fetch data from the database
+    rows = session.execute("SELECT * FROM tasks")
+    task_counts = defaultdict(int)
+    for row in rows:
+        task_counts[row.group_tag] += 1
+
+    # Create a histogram
+    labels = list(task_counts.keys())
+    sizes = list(task_counts.values())
+    fig, ax = plt.subplots()
+    ax.bar(labels, sizes)
+    ax.set_xlabel('Group')
+    ax.set_ylabel('Number of Tasks')
+    ax.set_title('Number of Tasks in Each Group')
+
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+
+    # Save the histogram to a BytesIO object
+    img_bytes = io.BytesIO()
+    plt.savefig(img_bytes, format='png')
+    img_bytes.seek(0)
+
+    # Clear the plot to release memory
+    plt.clf()
+
+    # Send the histogram image as a file
+    return send_file(img_bytes, mimetype='image/png')
+    
 if __name__ == '__main__':
     app.run(debug=True)

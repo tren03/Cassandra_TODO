@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todo List</title>
+    <title>To-do List</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
@@ -28,7 +28,7 @@
         </ul>
 
         <!-- Display tasks for the selected group -->
-        <h2 class="mt-5">Todos:</h2>
+        <h2 class="mt-5">To-dos:</h2>
         {% if selected_group %}
             <h3>Selected Group: {{ selected_group }}</h3>
         {% endif %}
@@ -42,7 +42,25 @@
                     </li>
                 {% endif %}
             {% endfor %}
+
+
+            
         </ul>
     </div>
+
+    <!-- Add this below the existing HTML content -->
+<!-- Add this below the existing HTML content -->
+<div class="container mt-5">
+    <h2>Tasks Count Chart</h2>
+    <img src="/tasks_count_chart" alt="Tasks Count Chart" style="max-width: 100%; height: auto;">
+</div>
+<div class="container mt-5">
+    <h2>Tasks Count Chart</h2>
+    <img src="/task_histogram" alt="Tasks" style="max-width: 100%; height: auto;">
+</div>
+
+
+
+
 </body>
 </html>
