@@ -13,6 +13,8 @@
             <div class="input-group">
                 <input type="text" name="task" class="form-control" placeholder="Add a new task">
                 <input type="text" name="group" class="form-control" placeholder="Group (optional)">
+                <input type="date" name="day" class="form-control" placeholder="Day (optional)">
+                <input type="time" name="hour" class="form-control" placeholder="Hour (optional)">
                 <div class="input-group-append">
                     <button type="submit" class="btn btn-primary">Add Task</button>
                 </div>
@@ -42,25 +44,17 @@
                     </li>
                 {% endif %}
             {% endfor %}
-
-
-            
         </ul>
     </div>
 
     <!-- Add this below the existing HTML content -->
-<!-- Add this below the existing HTML content -->
-<div class="container mt-5">
-    <h2>Tasks Count Chart</h2>
-    <img src="/tasks_count_chart" alt="Tasks Count Chart" style="max-width: 100%; height: auto;">
-</div>
-<div class="container mt-5">
-    <h2>Tasks Count Chart</h2>
-    <img src="/task_histogram" alt="Tasks" style="max-width: 100%; height: auto;">
-</div>
-
-
-
-
+    <div class="container mt-5">
+        <h2>Tasks Count Chart</h2>
+        <img src="/tasks_count_chart" alt="Tasks Count Chart" style="max-width: 100%; height: auto;">
+    </div>
+    <div class="container mt-5">
+        <h2>Tasks Count Chart</h2>
+        <img src="/task_histogram" alt="Tasks" style="max-width: 100%; height: auto;">
+    </div>
 </body>
 </html>

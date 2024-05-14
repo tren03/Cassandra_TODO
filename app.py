@@ -7,7 +7,6 @@ from flask import send_file
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from flask import jsonify
 app = Flask(__name__)
 
 # Connect to the Cassandra cluster
@@ -15,7 +14,7 @@ cluster = Cluster(['127.0.0.1'])  # Replace '127.0.0.1' with your Cassandra node
 session = cluster.connect()
 session.execute("CREATE KEYSPACE IF NOT EXISTS todo WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}")
 session.set_keyspace('todo')
-session.execute("CREATE TABLE IF NOT EXISTS tasks (id UUID PRIMARY KEY, task TEXT, group_tag TEXT)")
+session.execute("CREATE TABLE IF NOT EXISTS tasks (id UUID PRIMARY KEY, task TEXT, group_tag TEXT, day TEXT, hour TEXT)")
 
 
 @app.route('/')
@@ -34,7 +33,6 @@ def index():
     selected_group = request.args.get('group')
 
     # Filter tasks for the selected group if specified
-    # we choose distinct groups from python since cassandra doesnt allow distinct for non partiion key
     if selected_group:
         tasks = [task for task in tasks if task['group'] == selected_group]
 
@@ -45,17 +43,16 @@ def index():
 def add():
     task = request.form['task']
     group_tag = request.form['group']
+    day = request.form.get('day')
+    hour = request.form.get('hour')
 
-    if task!="":
-
+    if task != "":
         if group_tag == "":
             group_tag = "default"
 
         # Insert task into the database
-        session.execute("INSERT INTO tasks (id, task, group_tag) VALUES (%s, %s, %s)", (uuid4(), task, group_tag))
-
-    # Update group tags table
-    # session.execute("INSERT INTO group_tags (group_tag) VALUES (%s) IF NOT EXISTS", [group_tag])
+        session.execute("INSERT INTO tasks (id, task, group_tag, day, hour) VALUES (%s, %s, %s, %s, %s)",
+                        (uuid4(), task, group_tag, day, hour))
 
     return redirect(url_for('index'))
 
