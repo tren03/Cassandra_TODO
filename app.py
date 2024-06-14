@@ -1,18 +1,25 @@
+from flask import Flask, render_template, request, redirect, url_for, send_file, jsonify
+from pymongo import MongoClient
+from cassandra.cluster import Cluster
+from uuid import uuid4, UUID
+from collections import defaultdict
 import matplotlib
 matplotlib.use('Agg')  # Use the 'Agg' backend which doesn't require a display
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import io
-from flask import send_file
-from flask import Flask, render_template, request, redirect, url_for
-from cassandra.cluster import Cluster
-from uuid import uuid4
-from collections import defaultdict
-import time
+import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
+load_dotenv()
+MONGO_URI = os.getenv('MONGO_URI')
+# Connect to MongoDB Atlas
+client = MongoClient(MONGO_URI)
+db = client.todo
+tasks_collection = db.tasks
 
-# Connect to the Cassandra cluster
+# Connect to Cassandra
 cluster = Cluster(['127.0.0.1'])  # Replace '127.0.0.1' with your Cassandra node IP
 session = cluster.connect()
 session.execute("CREATE KEYSPACE IF NOT EXISTS todo WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}")
@@ -33,25 +40,15 @@ def save_plot(fig):
 
 @app.route('/')
 def index():
-    # Get all tasks
-    rows = session.execute("SELECT * FROM tasks")
-    tasks = [{'id': row.id, 'task': row.task, 'group': row.group_tag, 'time':row.hour, 'day':row.day} for row in rows]
+    return render_template('index.html')
 
-    # Extract distinct groups from tasks
-    all_groups = [task['group'] for task in tasks]
+@app.route('/input_tasks')
+def input_tasks():
+    return render_template('input_tasks.html')
 
-    # Filter out empty groups
-    non_empty_groups = set(group for group in all_groups if group)
-
-    # Get the selected group from the request
-    selected_group = request.args.get('group')
-
-    # Filter tasks for the selected group if specified
-    if selected_group:
-        tasks = [task for task in tasks if task['group'] == selected_group]
-
-    return render_template('index.html', tasks=tasks, groups=non_empty_groups, selected_group=selected_group)
-
+@app.route('/show_analysis')
+def show_analysis():
+    return render_template('show_analysis.html')
 
 @app.route('/add', methods=['POST'])
 def add():
@@ -64,23 +61,42 @@ def add():
         if group_tag == "":
             group_tag = "default"
 
-        # Insert task into the database
+        task_id = str(uuid4())
+        task_uuid = UUID(task_id)
+
+        # Insert task into MongoDB
+        tasks_collection.insert_one({
+            '_id': task_id,
+            'task': task,
+            'group_tag': group_tag,
+            'day': day,
+            'hour': hour
+        })
+
+        # Insert task into Cassandra
         session.execute("INSERT INTO tasks (id, task, group_tag, day, hour) VALUES (%s, %s, %s, %s, %s)",
-                        (uuid4(), task, group_tag, day, hour))
+                        (task_uuid, task, group_tag, day, hour))
 
     return redirect(url_for('index'))
 
-@app.route('/delete/<uuid:id>')
-def delete(id):
-    session.execute("DELETE FROM tasks WHERE id = %s", [id])
-    return redirect(url_for('index'))
+@app.route('/delete/<id>', methods=['POST'])
+def delete_task(id):
+    # Delete task from MongoDB
+    tasks_collection.delete_one({'_id': id})
+    
+    # Convert the id to a UUID object
+    task_uuid = UUID(id)
+
+    # Delete task from Cassandra
+    session.execute("DELETE FROM tasks WHERE id = %s", [task_uuid])
+    return jsonify({'status': 'success'})
 
 @app.route('/tasks_count_chart')
 def tasks_count_chart():
-    rows = session.execute("SELECT * FROM tasks")
+    rows = tasks_collection.find()
     task_counts = defaultdict(int)
     for row in rows:
-        task_counts[row.group_tag] += 1
+        task_counts[row['group_tag']] += 1
 
     # Create a pie chart
     labels = list(task_counts.keys())
@@ -97,11 +113,10 @@ def tasks_count_chart():
 
 @app.route('/task_histogram')
 def task_histogram():
-    # Fetch data from the database
-    rows = session.execute("SELECT * FROM tasks")
+    rows = tasks_collection.find()
     task_counts = defaultdict(int)
     for row in rows:
-        task_counts[row.group_tag] += 1
+        task_counts[row['group_tag']] += 1
 
     # Create a histogram
     labels = list(task_counts.keys())
@@ -120,16 +135,14 @@ def task_histogram():
     # Send the histogram image as a file
     return send_file(img_bytes, mimetype='image/png')
 
-
 @app.route('/task_hour')
 def task_hour():
-    # Fetch data from the database
-    rows = session.execute("SELECT * FROM tasks")
+    rows = tasks_collection.find()
     task_counts = defaultdict(int)
 
     for row in rows:
         # Extract hour from the 'hour' field (assuming hour is stored in 'hour:minute' format)
-        hour = row.hour.split(':')[0]
+        hour = row['hour'].split(':')[0]
         task_counts[hour] += 1
 
     # Create a histogram
@@ -161,16 +174,14 @@ def task_hour():
     # Send the histogram image as a file
     return send_file(img_bytes, mimetype='image/png')
 
-
 @app.route('/task_month')
 def task_month():
-    # Fetch data from the database
-    rows = session.execute("SELECT * FROM tasks")
+    rows = tasks_collection.find()
     task_counts = defaultdict(int)
 
     for row in rows:
         # Extract month from the 'day' field (assuming day is stored in 'YYYY-MM-DD' format)
-        month = row.day.split('-')[1]
+        month = row['day'].split('-')[1]
         task_counts[month] += 1
 
     # Create a histogram
@@ -199,11 +210,13 @@ def task_month():
     # Send the histogram image as a file
     return send_file(img_bytes, mimetype='image/png')
 
+@app.route('/show_all_tasks')
+def show_all_tasks():
+    # Fetch all tasks from the database
+    rows = tasks_collection.find()
+    tasks = [{'id': str(row['_id']), 'task': row['task'], 'group': row['group_tag'], 'time': row['hour'], 'day': row['day']} for row in rows]
 
+    return jsonify(tasks)
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
-#since matplot lib isnt thread safe, we needed to make each call have its for graph have its own instance. this fixed the problem of graphs not getting generated correctly
